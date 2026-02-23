@@ -1,12 +1,9 @@
 # iot-health-monitor-esp32
-# IoT-Based Health Monitoring System
 
 A smart, real-time health tracking system designed to monitor vital signs and provide instant alerts for medical intervention.
 
 ##  Overview
 This project addresses the need for affordable remote patient monitoring. By leveraging the **ESP32** and **IoT (Blynk)**, the system captures heart rate and temperature data, providing a dual-layered monitoring approach: local display for the patient and remote cloud access for caregivers.
-
-
 
 ## Key Features
 * **Real-time Vitals:** Continuous tracking of Heart Rate (BPM) and Body/Ambient Temperature.
@@ -26,8 +23,6 @@ This project addresses the need for affordable remote patient monitoring. By lev
 * **Language:** C++ (Embedded)
 * **IoT Platform:** Blynk Cloud & Mobile App
 * **Communication:** HTTP/MQTT via Wi-Fi
-
-
 
 ## How It Works
 1.  The **PulseSensor** detects blood flow changes to calculate BPM using an interrupt-driven algorithm.
