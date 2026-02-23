@@ -1,0 +1,191 @@
+//Code
+#define BLYNK_TEMPLATE_ID "TMPL6Q-32OiDx" 
+#define BLYNK_TEMPLATE_NAME "Health Monitor" 
+#define BLYNK_AUTH_TOKEN "0rtzMHto8xypq5O4PMypSusER2XxwRXt" 
+
+#include <WiFi.h>
+#include <BlynkSimpleEsp32.h>
+#include <PulseSensorPlayground.h>  
+#include <LiquidCrystal.h>          
+#include <ESP_Mail_Client.h>        
+
+char ssid[] = "SIBAU-CAFE";        
+char pass[] = "CafeIB@u";           
+
+#define SMTP_server "smtp.gmail.com"
+#define SMTP_Port 465
+#define sender_email "habeebanmemon73@gmail.com"
+#define sender_password "zadd griy fica ngrv"
+#define Recipient_email "ayeshaansari0921@gmail.com"
+#define Recipient_name "Dr: Ayesha"
+
+const int PulseWire = 34;           
+const int TempPin = 33;             
+const int LED = 2;                  
+const int Buzzer = 32;              
+const int rs = 16, en = 4, d4 = 17, d5 = 5, d6 = 18, d7 = 19;
+
+int Threshold = 550;                
+PulseSensorPlayground pulseSensor;  
+
+LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+
+int normalMin = 60;                 
+int normalMax = 100;                
+int myBPM = 0;                      
+
+float temperature = 0.0;            
+
+bool wifiConnected = false;
+
+SMTPSession smtp;
+
+unsigned long lastEmailSentTime = 0;
+
+void sendEmail(String subject, String messageBody) {
+  unsigned long currentTime = millis();
+
+  if (currentTime - lastEmailSentTime < 15000) {
+    Serial.println("Email will be sent after 15 seconds.");
+    return;
+  }
+
+  ESP_Mail_Session session;
+  session.server.host_name = SMTP_server;
+  session.server.port = SMTP_Port;
+  session.login.email = sender_email;
+  session.login.password = sender_password;
+
+  SMTP_Message message;
+  message.sender.name = "Patient Habiba Health Monitor Alert!!";
+  message.sender.email = sender_email;
+  message.subject = subject.c_str();
+  message.addRecipient(Recipient_name, Recipient_email);
+
+  String htmlMsg = "<div style=\"color:#000000;\"><h2>Health Monitor Alert</h2><p>" + messageBody + "</p></div>";
+  message.html.content = htmlMsg.c_str();
+  message.html.charSet = "us-ascii";
+
+  if (!smtp.connect(&session)) {
+    Serial.println("Error connecting to SMTP server: " + smtp.errorReason());
+    return;
+  }
+
+  if (!MailClient.sendMail(&smtp, &message)) {
+    Serial.println("Error sending Email: " + smtp.errorReason());
+  } else {
+    Serial.println("Email sent successfully!");
+    lastEmailSentTime = currentTime;
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+
+  WiFi.begin(ssid, pass);
+  Serial.print("Connecting to Wi-Fi...");
+  for (int i = 0; i < 20; i++) {    
+    if (WiFi.status() == WL_CONNECTED) {
+      wifiConnected = true;
+      Serial.println("\nConnected to Wi-Fi.");
+      break;
+    }
+    delay(500);
+    Serial.print(".");
+  }
+  if (wifiConnected) {
+    Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
+    Serial.println("Connected to Blynk.");
+  } else {
+    Serial.println("\nWi-Fi not connected. Running offline.");
+  }
+
+  pulseSensor.analogInput(PulseWire);
+  pulseSensor.blinkOnPulse(LED);    
+  pulseSensor.setThreshold(Threshold);
+
+  if (pulseSensor.begin()) {
+    Serial.println("Pulse sensor initialized!");
+  } else {
+    Serial.println("Pulse sensor initialization failed!");
+  }
+
+  lcd.begin(16, 2);                 
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Patient Health");
+  lcd.setCursor(0, 1);
+  lcd.print("Monitor System");
+  delay(5000);
+  lcd.clear();
+
+  lcd.setCursor(0, 0);
+  lcd.print("Made By:");
+  lcd.setCursor(0, 1);
+  lcd.print("Habiba & Ayesha");
+  delay(5000);
+  lcd.clear();
+
+  pinMode(Buzzer, OUTPUT);
+  digitalWrite(Buzzer, LOW);
+  smtp.debug(1);
+}
+
+void loop() {
+  if (wifiConnected) {
+    Blynk.run();
+  }
+
+  if (pulseSensor.sawStartOfBeat()) {
+    myBPM = pulseSensor.getBeatsPerMinute();
+    
+    if (myBPM > 40 && myBPM < 180) {
+      Serial.print("BPM: ");
+      Serial.println(myBPM);
+
+      lcd.setCursor(0, 0);
+      lcd.print("Heart Rt: ");
+      lcd.print(myBPM);
+      lcd.print(" BPM ");
+
+      lcd.setCursor(0, 1);
+      if (myBPM < normalMin) {
+        lcd.print("Low HR Alert! ");
+        digitalWrite(Buzzer, HIGH);
+        Serial.println("Low Heart Rate!");
+        sendEmail("Low Heart Rate Alert", "The patient's heart rate is dangerously low: " + String(myBPM) + " BPM.");
+      } else if (myBPM > normalMax) {
+        lcd.print("High HR Alert!");
+        digitalWrite(Buzzer, HIGH);
+        Serial.println("High Heart Rate!");
+        sendEmail("High Heart Rate Alert", "The patient's heart rate is dangerously high: " + String(myBPM) + " BPM.");
+      } else {
+        lcd.print("HR Normal     ");
+        digitalWrite(Buzzer, LOW);
+        Serial.println("Normal Heart Rate.");
+      }
+
+      if (wifiConnected) {
+        Blynk.virtualWrite(V3, myBPM);
+      }
+    }
+  }
+
+  int tempValue = analogRead(TempPin);
+  temperature = (tempValue * 3.3 / 4095.0) * 100;
+
+  char tempStr[6];
+  dtostrf(temperature, 4, 1, tempStr);
+
+  lcd.setCursor(0, 1);
+  lcd.print("Room Tmp: ");
+  lcd.print(tempStr);
+  lcd.print(" C   ");
+
+  if (wifiConnected) {
+    Blynk.virtualWrite(V4, temperature);
+  }
+
+  delay(4000);
+}
+
