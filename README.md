@@ -1,2 +1,2 @@
 # iot-health-monitor-esp32
-An ESP32-based IoT Health Monitoring System that tracks Heart Rate (BPM) and ambient temperature in real-time. Features automated email alerts via Blynk for abnormal readings and a local 16x2 LCD interface.
+Developed a low-cost, real-time health monitoring solution using the ESP32 microcontroller and IoT protocols. The system integrates PulseSensors and LM35 sensors to provide continuous physiological data streaming to the Blynk mobile app. Key achievements include implementing a threshold-based logic for emergency email notifications to healthcare providers and ensuring data visualization through both hardware (LCD) and cloud dashboards.
